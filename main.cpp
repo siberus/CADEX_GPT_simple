@@ -3,8 +3,8 @@
 #include <vector>
 #include <algorithm>
 #include <cmath>
+#include <memory>
 
-// Base class for 3D curves
 class Curve3D {
 public:
     virtual ~Curve3D() {}
@@ -12,7 +12,6 @@ public:
     virtual void pointAndDerivative(double t, double& x, double& y, double& z, double& dx, double& dy, double& dz) const = 0;
 };
 
-// Circle class
 class Circle : public Curve3D {
 private:
     double _radius;
@@ -38,7 +37,6 @@ public:
     }
 };
 
-// Ellipse class
 class Ellipse : public Curve3D {
 private:
     double _radiusX;
@@ -47,7 +45,7 @@ private:
 public:
     Ellipse(double radiusX, double radiusY) : _radiusX(radiusX), _radiusY(radiusY) {
         if (_radiusX <= 0 || _radiusY <= 0) {
-            throw std::invalid_argument("Radius must be positive.");
+            throw std::invalid_argument("Radii must be positive.");
         }
     }
 
@@ -65,7 +63,6 @@ public:
     }
 };
 
-// Helix class
 class Helix : public Curve3D {
 private:
     double _radius;
@@ -93,15 +90,13 @@ public:
 };
 
 int main() {
-    // Populate a container with random curves
-    std::vector<Curve3D*> curves;
-    curves.push_back(new Circle(2.0));
-    curves.push_back(new Ellipse(3.0, 2.0));
-    curves.push_back(new Helix(1.0, 0.5));
+    std::vector<std::unique_ptr<Curve3D>> curves;
+    curves.push_back(std::make_unique<Circle>(2.0));
+    curves.push_back(std::make_unique<Ellipse>(3.0, 2.0));
+    curves.push_back(std::make_unique<Helix>(1.0, 0.5));
 
-    // Print coordinates and derivatives at t = PI/4
     double t = M_PI / 4.0;
-    for (const Curve3D* curve : curves) {
+    for (const auto& curve : curves) {
         double x, y, z, dx, dy, dz;
         curve->pointAndDerivative(t, x, y, z, dx, dy, dz);
         std::cout << "Curve type: " << typeid(*curve).name() << std::endl;
@@ -110,28 +105,20 @@ int main() {
         std::cout << std::endl;
     }
 
-    // Populate a second container with circles from the first container
     std::vector<Circle*> circles;
-    for (Curve3D* curve : curves) {
-        if (dynamic_cast<Circle*>(curve)) {
-            circles.push_back(static_cast<Circle*>(curve));
+    for (const auto& curve : curves) {
+        if (auto circle = dynamic_cast<Circle*>(curve.get())) {
+            circles.push_back(circle);
         }
     }
 
-    // Sort the second container based on radii
     std::sort(circles.begin(), circles.end(), [](const Circle* c1, const Circle* c2) {
         return c1->radius() < c2->radius();
     });
 
-    // Calculate the total sum of radii
     double totalRadiusSum = 0.0;
     for (const Circle* circle : circles) {
         totalRadiusSum += circle->radius();
-    }
-
-    // Clean up memory
-    for (Curve3D* curve : curves) {
-        delete curve;
     }
 
     return 0;
