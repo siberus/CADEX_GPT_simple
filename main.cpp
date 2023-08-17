@@ -36,13 +36,15 @@ class Curve
 {
 private:
     Point m_center;
+protected:
+    std::string m_type; 
+    Curve(std::string type, const Point &p1) 
+        : m_type(type), m_center (p1) {}
 public:
-    Curve(const Point &p1) 
-        : m_center (p1) {}
-        
     virtual ~Curve() {}
     //virtual double radius() const = 0;
     Point getCenter() const { return m_center; }
+    std::string getType() { return m_type;}
     virtual void pointAndDerivative(double t, Point &p, Point &dp) const = 0;
 };
 
@@ -53,7 +55,7 @@ private:
 
 public:
     Circle(double radius, const Point &center)
-        : Curve(center), m_radius(radius) {
+        : Curve("Circle", center), m_radius(radius) {
         if (m_radius <= 0.0) {
             throw std::invalid_argument("Radius must be positive.");
         }
@@ -83,7 +85,7 @@ private:
 
 public:
     Ellipse(double radiusMin, double radiusMax, const Point &center)
-        : Curve(center), m_radiusMin(radiusMin), m_radiusMax(radiusMax) 
+        : Curve("Ellipse", center), m_radiusMin(radiusMin), m_radiusMax(radiusMax) 
         {
             if (m_radiusMin <= 0.0 || m_radiusMax <= 0.0) {
                 throw std::invalid_argument("Radii must be positive.");
@@ -114,7 +116,7 @@ private:
 
 public:
     Helix(double radius, double step, const Point &center)
-        : Curve(center), m_radius(radius), m_step(step) {
+        : Curve("Helix", center), m_radius(radius), m_step(step) {
         if (m_radius <= 0.0 || m_step <= 0.0) {
             throw std::invalid_argument("Radius and step must be positive.");
         }
@@ -144,6 +146,7 @@ int main()
 {
     srand(static_cast<unsigned int>(time(0))); // устанавливаем значение
 
+    //Populate a container (e.g. vector or list) of objects of these types created in random manner with random parameters.
     std::vector<std::unique_ptr<Curve>> curves;
 
     for (int i = 0; i < 10; ++i) {
@@ -177,23 +180,41 @@ int main()
         Point p, dp;
         curve->pointAndDerivative(M_PI / 4, p, dp);
         std::cout << i++ << std::endl;
-        std::cout << "Curve Type: " << typeid(*curve).name() << std::endl;
+        std::cout << "Curve Type: " << (*curve).getType() << std::endl;
         std::cout << "Point: " << p << std::endl;
         std::cout << "Derivative: " << dp << std::endl;
     }
 
+    //Populate a second container that would contain only circles from the first container.
     std::vector<Circle *> circles;
-
+    
     for (const auto &curve : curves) {
         if (typeid(*curve) == typeid(Circle)) {
             circles.push_back(static_cast<Circle *>(curve.get()));
         }
     }
 
+    i = 1;
+    for (const auto &circle : circles) 
+    {
+        std::cout << i++ << std::endl;
+        std::cout << "Curve Type: " << (*circle).getType() <<  " Radius: " << (*circle).radius() << std::endl;
+    }
+
+    //Sort the second container in the ascending order of circles’ radii. T
     std::sort(circles.begin(), circles.end(), [](const Circle *a, const Circle *b) {
         return a->radius() < b->radius();
     });
 
+    i = 1;
+    for (const auto &circle : circles) 
+    {
+        std::cout << i++ << std::endl;
+        std::cout << "Curve Type: " << (*circle).getType() <<  " Radius: " << (*circle).radius() << std::endl;
+    }
+
+
+    //Compute the total sum of radii of all curves in the second container.
     double totalRadii = 0.0;
     for (const Circle *circle : circles) {
         totalRadii += circle->radius();
