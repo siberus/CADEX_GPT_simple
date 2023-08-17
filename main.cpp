@@ -5,36 +5,89 @@
 #include <cmath>
 #include <memory>
 
-class Curve3D {
+class Point 
+{
+private:
+    double m_x = 0.0;
+    double m_y = 0.0;
+    double m_z = 0.0;
+
 public:
-    virtual ~Curve3D() {}
-    virtual double radius() const = 0;
+    Point(double x, double y, double z)
+         : m_x(x), m_y(y), m_z(z) {}
+
+    friend std::ostream& operator<<(std::ostream &out, const Point &p)
+    {
+        out << "Point(" << p.m_x << ", " << p.m_y << ", " << p.m_z << ")"; 
+        return out;
+    }
+    
+    float getX() const { return m_x; } 
+    float getY() const { return m_y; } 
+    float getZ() const { return m_z; } 
+};
+
+class Curve 
+{
+private:
+/*      double m_centerX;
+    double m_centerY;
+    double m_centerZ;
+*/
+    Point m_center;
+public:
+    /* Curve(double x = 0.0, double y = 0.0, double z = 0.0) 
+        : m_centerX(x), m_centerY(y), m_centerZ(z) {}
+    
+    float getCenterX() const { return m_centerX; } 
+    float getCenterY() const { return m_centerY; } 
+    float getCenterZ() const { return m_centerZ; } 
+ */
+    Curve(const Point &p1) 
+        : m_center (p1) {}
+        
+    virtual ~Curve() {}
+    //virtual double radius() const = 0;
     virtual void pointAndDerivative(double t, double& x, double& y, double& z, double& dx, double& dy, double& dz) const = 0;
 };
 
-class Circle : public Curve3D {
-private:
-    double _radius;
+class Circle : public Curve 
+{
+    private:
+        double m_radius;
 
-public:
-    Circle(double radius) : _radius(radius) {
-        if (_radius <= 0) {
-            throw std::invalid_argument("Radius must be positive.");
+    public:
+        Circle(double radius, double x = 0.0, double y = 0.0, double z = 0.0) 
+            : Curve(x, y, z),  
+                 m_radius(radius) 
+        {
+            if (m_radius <= 0) {
+                throw std::invalid_argument("Radius must be positive.");
+            }
         }
-    }
 
-    double radius() const override {
-        return _radius;
-    }
+       // double getRadius() const { return m_radius; }
 
-    void pointAndDerivative(double t, double& x, double& y, double& z, double& dx, double& dy, double& dz) const override {
-        x = _radius * cos(t);
-        y = _radius * sin(t);
-        z = 0.0;
-        dx = -_radius * sin(t);
-        dy = _radius * cos(t);
-        dz = 0.0;
-    }
+       /* void pointAndDerivative(double t, double& x, double& y, double& z, double& dx, double& dy, double& dz) const  
+        {
+            x = m_radius * cos(t);
+            y = m_radius * sin(t);
+            z = 0.0;
+            dx = -m_radius * sin(t);
+            dy = m_radius * cos(t);
+            dz = 0.0;
+        }*/
+
+        void Circle::pointAndDerivative(double t, double& x, double& y, double& z, double& dx, double& dy, double& dz) const 
+        {
+            x = getCenterX() + m_radius * cos(t);
+            y = getCenterY() + m_radius * sin(t);
+            z = getCenterZ();
+            dx = -m_radius * sin(t);
+            dy = m_radius * cos(t);
+            dz = 0.0;
+        }
+
 };
 
 class Ellipse : public Curve3D {
