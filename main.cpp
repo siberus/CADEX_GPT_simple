@@ -4,6 +4,10 @@
 #include <algorithm>
 #include <cmath>
 #include <memory>
+#include <ctime> // для time() 
+#include <cstdlib> // для rand() и srand() 
+
+
 
 class Point 
 {
@@ -13,12 +17,13 @@ private:
     double m_z = 0.0;
 
 public:
+    Point() {}
     Point(double x, double y, double z)
          : m_x(x), m_y(y), m_z(z) {}
 
     friend std::ostream& operator<<(std::ostream &out, const Point &p)
     {
-        out << "Point(" << p.m_x << ", " << p.m_y << ", " << p.m_z << ")"; 
+        out << "x=" << p.m_x << ", y=" << p.m_y << ", z=" << p.m_z << " "; 
         return out;
     }
     
@@ -30,149 +35,171 @@ public:
 class Curve 
 {
 private:
-/*      double m_centerX;
-    double m_centerY;
-    double m_centerZ;
-*/
     Point m_center;
 public:
-    /* Curve(double x = 0.0, double y = 0.0, double z = 0.0) 
-        : m_centerX(x), m_centerY(y), m_centerZ(z) {}
-    
-    float getCenterX() const { return m_centerX; } 
-    float getCenterY() const { return m_centerY; } 
-    float getCenterZ() const { return m_centerZ; } 
- */
     Curve(const Point &p1) 
         : m_center (p1) {}
         
     virtual ~Curve() {}
     //virtual double radius() const = 0;
-    virtual void pointAndDerivative(double t, double& x, double& y, double& z, double& dx, double& dy, double& dz) const = 0;
+    Point getCenter() const { return m_center; }
+    virtual void pointAndDerivative(double t, Point &p, Point &dp) const = 0;
 };
 
 class Circle : public Curve 
 {
-    private:
-        double m_radius;
-
-    public:
-        Circle(double radius, double x = 0.0, double y = 0.0, double z = 0.0) 
-            : Curve(x, y, z),  
-                 m_radius(radius) 
-        {
-            if (m_radius <= 0) {
-                throw std::invalid_argument("Radius must be positive.");
-            }
-        }
-
-       // double getRadius() const { return m_radius; }
-
-       /* void pointAndDerivative(double t, double& x, double& y, double& z, double& dx, double& dy, double& dz) const  
-        {
-            x = m_radius * cos(t);
-            y = m_radius * sin(t);
-            z = 0.0;
-            dx = -m_radius * sin(t);
-            dy = m_radius * cos(t);
-            dz = 0.0;
-        }*/
-
-        void Circle::pointAndDerivative(double t, double& x, double& y, double& z, double& dx, double& dy, double& dz) const 
-        {
-            x = getCenterX() + m_radius * cos(t);
-            y = getCenterY() + m_radius * sin(t);
-            z = getCenterZ();
-            dx = -m_radius * sin(t);
-            dy = m_radius * cos(t);
-            dz = 0.0;
-        }
-
-};
-
-class Ellipse : public Curve3D {
 private:
-    double _radiusX;
-    double _radiusY;
+    double m_radius;
 
 public:
-    Ellipse(double radiusX, double radiusY) : _radiusX(radiusX), _radiusY(radiusY) {
-        if (_radiusX <= 0 || _radiusY <= 0) {
-            throw std::invalid_argument("Radii must be positive.");
+    Circle(double radius, const Point &center)
+        : Curve(center), m_radius(radius) {
+        if (m_radius <= 0.0) {
+            throw std::invalid_argument("Radius must be positive.");
         }
     }
 
-    double radius() const override {
-        return (_radiusX + _radiusY) / 2.0;
+    void pointAndDerivative(double t, Point &p, Point &dp) const override {
+        double x = getCenter().getX() + radius() * cos(t);
+        double y = getCenter().getY() + radius() * sin(t);
+        double z = getCenter().getZ();
+        double dx = -radius() * sin(t);
+        double dy = radius() * cos(t);
+        double dz = 0.0;
+
+        p = Point(x, y, z);
+        dp = Point(dx, dy, dz);
     }
 
-    void pointAndDerivative(double t, double& x, double& y, double& z, double& dx, double& dy, double& dz) const override {
-        x = _radiusX * cos(t);
-        y = _radiusY * sin(t);
-        z = 0.0;
-        dx = -_radiusX * sin(t);
-        dy = _radiusY * cos(t);
-        dz = 0.0;
+    double radius() const {
+        return m_radius;
     }
 };
 
-class Helix : public Curve3D {
+class Ellipse : public Curve {
 private:
-    double _radius;
-    double _step;
+    double m_radiusMin;
+    double m_radiusMax;
 
 public:
-    Helix(double radius, double step) : _radius(radius), _step(step) {
-        if (_radius <= 0 || _step <= 0) {
+    Ellipse(double radiusMin, double radiusMax, const Point &center)
+        : Curve(center), m_radiusMin(radiusMin), m_radiusMax(radiusMax) 
+        {
+            if (m_radiusMin <= 0.0 || m_radiusMax <= 0.0) {
+                throw std::invalid_argument("Radii must be positive.");
+        }
+    }
+
+    void pointAndDerivative(double t, Point &p, Point &dp) const override 
+    {
+        
+        double paramT = atan2(m_radiusMax * sin(t), m_radiusMin * cos(t));
+            if (t < 0.0) { t += 2 * M_PI; }
+        double x = getCenter().getX() + m_radiusMax * cos(paramT);
+        double y = getCenter().getY() + m_radiusMin * sin(paramT);
+        double z = getCenter().getZ();
+        double dx_dt = -m_radiusMax * sin(paramT);
+        double dy_dt = m_radiusMin * cos(paramT);
+        double dz_dt = 0.0;
+        
+        p = Point(x, y, z);
+        dp = Point(dx_dt, dy_dt, dz_dt);
+    }
+};
+   
+class Helix : public Curve {
+private:
+    double m_radius;
+    double m_step;
+
+public:
+    Helix(double radius, double step, const Point &center)
+        : Curve(center), m_radius(radius), m_step(step) {
+        if (m_radius <= 0.0 || m_step <= 0.0) {
             throw std::invalid_argument("Radius and step must be positive.");
         }
     }
 
-    double radius() const override {
-        return _radius;
-    }
+    void pointAndDerivative(double t, Point &p, Point &dp) const override {
+        double x = getCenter().getX() + m_radius * cos(t);
+        double y = getCenter().getY() + m_radius * sin(t);
+        double z = getCenter().getZ() + (t / 2 * M_PI) * m_step;
+        double dx = -m_radius * sin(t);
+        double dy = m_radius * cos(t);
+        double dz = m_step;
 
-    void pointAndDerivative(double t, double& x, double& y, double& z, double& dx, double& dy, double& dz) const override {
-        x = _radius * cos(t);
-        y = _radius * sin(t);
-        z = t * _step;
-        dx = -_radius * sin(t);
-        dy = _radius * cos(t);
-        dz = _step;
+        p = Point(x, y, z);
+        dp = Point(dx, dy, dz);
     }
 };
 
-int main() {
-    std::vector<std::unique_ptr<Curve3D>> curves;
-    curves.push_back(std::make_unique<Circle>(2.0));
-    curves.push_back(std::make_unique<Ellipse>(3.0, 2.0));
-    curves.push_back(std::make_unique<Helix>(1.0, 0.5));
+double getRandomNumber(int min, int max) 
+{ 
+ static const double fraction = 1.0 / (static_cast<double>(RAND_MAX) + 1.0); 
+ // Равномерно распределяем генерацию случайного числа в диапазоне значений
+ return (rand() * fraction * (max - min + 1) + min); 
+}
 
-    double t = M_PI / 4.0;
-    for (const auto& curve : curves) {
-        double x, y, z, dx, dy, dz;
-        curve->pointAndDerivative(t, x, y, z, dx, dy, dz);
-        std::cout << "Curve type: " << typeid(*curve).name() << std::endl;
-        std::cout << "Point at t = PI/4: (" << x << ", " << y << ", " << z << ")" << std::endl;
-        std::cout << "Derivative at t = PI/4: (" << dx << ", " << dy << ", " << dz << ")" << std::endl;
-        std::cout << std::endl;
+int main() 
+{
+    srand(static_cast<unsigned int>(time(0))); // устанавливаем значение
+
+    std::vector<std::unique_ptr<Curve>> curves;
+
+    for (int i = 0; i < 10; ++i) {
+        double x = getRandomNumber(0, 10);
+        double y = getRandomNumber(0, 10);
+        double z = 0;
+        double radius =  getRandomNumber(0, 10);
+        double radiusMin =  getRandomNumber(0, 9);
+        double radiusMax =  getRandomNumber(radiusMin, 10);
+        double step = getRandomNumber(0, 3);;
+
+        std::unique_ptr<Curve> curve;
+        if (static_cast<int>(getRandomNumber(1, 3))  == 1) 
+        {
+            curve = std::make_unique<Circle>(radius, Point(x, y, z));
+        } else if (static_cast<int>(getRandomNumber(1, 3))  == 2) 
+        {
+            curve = std::make_unique<Ellipse>(radiusMin, radiusMax, Point(x, y, z));
+        } else 
+        {
+            curve = std::make_unique<Helix>(radius, step, Point(x, y, z));
+        }
+
+        curves.push_back(std::move(curve));
     }
 
-    std::vector<Circle*> circles;
-    for (const auto& curve : curves) {
-        if (auto circle = dynamic_cast<Circle*>(curve.get())) {
-            circles.push_back(circle);
+    // Print coordinates and derivatives of all curves at t = PI/4
+    int i = 1;
+    for (const auto &curve : curves) 
+    {
+        Point p, dp;
+        curve->pointAndDerivative(M_PI / 4, p, dp);
+        std::cout << i++ << std::endl;
+        std::cout << "Curve Type: " << typeid(*curve).name() << std::endl;
+        std::cout << "Point: " << p << std::endl;
+        std::cout << "Derivative: " << dp << std::endl;
+    }
+
+    std::vector<Circle *> circles;
+
+    for (const auto &curve : curves) {
+        if (typeid(*curve) == typeid(Circle)) {
+            circles.push_back(static_cast<Circle *>(curve.get()));
         }
     }
 
-    std::sort(circles.begin(), circles.end(), [](const Circle* c1, const Circle* c2) {
-        return c1->radius() < c2->radius();
+    std::sort(circles.begin(), circles.end(), [](const Circle *a, const Circle *b) {
+        return a->radius() < b->radius();
     });
 
-    double totalRadiusSum = 0.0;
-    for (const Circle* circle : circles) {
-        totalRadiusSum += circle->radius();
+    double totalRadii = 0.0;
+    for (const Circle *circle : circles) {
+        totalRadii += circle->radius();
     }
+
+    std::cout << "Total Sum of Radii: " << totalRadii << std::endl;
 
     return 0;
 }
